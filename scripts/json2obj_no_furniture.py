@@ -115,4 +115,3 @@ for m in tqdm(files):
             if len(meshes) > 0:
                 temp = trimesh.util.concatenate(meshes)
                 temp.export(args.save_path+'/'+ m[:-5] + '/' + room_id + '.obj')
-    break
