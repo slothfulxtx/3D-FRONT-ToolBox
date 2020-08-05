@@ -74,6 +74,7 @@ if not os.path.exists(args.save_path):
 
 for m in files:
     with open(args.json_path+'/'+m, 'r', encoding='utf-8') as f:
+        # 打开3D-FRONT每个json文件
         data = json.load(f)
         model_jid = []
         model_uid = []
@@ -84,12 +85,15 @@ for m in files:
         mesh_faces = []
         if not os.path.exists(args.save_path+'/'+m[:-5]):
             os.mkdir(args.save_path+'/'+m[:-5])
+        # 对于每个3D-FRONT下的json文件
+        # 在输出路径下创建一个文件夹
         print(m[:-5])
         for ff in data['furniture']:
             if 'valid' in ff and ff['valid']:
                 model_uid.append(ff['uid'])
                 model_jid.append(ff['jid'])
                 model_bbox.append(ff['bbox'])
+        # 只渲染对应模型存在的家具
         for mm in data['mesh']:
             mesh_uid.append(mm['uid'])
             mesh_xyz.append(np.reshape(mm['xyz'], [-1, 3]))
@@ -97,10 +101,12 @@ for m in files:
         scene = data['scene']
         room = scene['room']
         for r in room:
+            # 对于该布局文件中的每间房间
             room_id = r['instanceid']
             meshes=[]
             if not os.path.exists(args.save_path+'/' + m[:-5]+'/'+room_id):
                 os.mkdir(args.save_path+'/' + m[:-5] + '/' + room_id)
+            # 在布局的文件夹下创建对应的房间文件夹
             children = r['children']
             number = 1
             for c in children:
@@ -109,6 +115,7 @@ for m in files:
                 type = 'f'
                 try:
                     idx = model_uid.index(ref)
+                    # 在家具模型列表中查找是否存在该ref
                     if os.path.exists(args.future_path+'/' + model_jid[idx]):
                         v, vt, _, faces, ftc, _ = igl.read_obj(args.future_path+'/' + model_jid[idx] + '/raw_model.obj')
                         # bbox = np.max(v, axis=0) - np.min(v, axis=0)
@@ -117,6 +124,7 @@ for m in files:
                 except:
                     try:
                         idx = mesh_uid.index(ref)
+                        # 在场景纹理中查找是否存在该ref
                     except:
                         continue
                     v = mesh_xyz[idx]
@@ -138,11 +146,14 @@ for m in files:
 
                 v = v + pos
                 if type == 'f':
+                    # 如果是家具，和纹理一起暂存到obj文件
                     write_obj_with_tex(args.save_path+'/' + m[:-5]+'/'+room_id+'/' + str(number) + '_' +model_jid[idx] + '.obj', v, faces, vt, ftc, args.future_path+'/' + model_jid[idx] + '/texture.png')
                     number = number + 1
                 else:
+                    # 如果是场景，添加到meshes中
                     meshes.append(trimesh.Trimesh(v, faces))
 
             if len(meshes) > 0:
                 temp = trimesh.util.concatenate(meshes)
                 temp.export(args.save_path+'/'+ m[:-5] + '/' + room_id + '/mesh.obj')
+                # 如果meshes列表不为空，那么导出一个mesh.obj文件

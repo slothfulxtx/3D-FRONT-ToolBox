@@ -132,3 +132,6 @@ run.py
 scripts/render_normals.py
 scripts/sample.py
 test.json
+
+# temporal files
+tmp/
