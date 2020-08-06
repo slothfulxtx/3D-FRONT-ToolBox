@@ -149,6 +149,9 @@
             ],
             "material": "103051533402139040/010305",
             "type": "Floor"
+            /*
+                {'', 'WallTop', 'Cabinet/LightBand', 'ExtrusionCustomizedBackgroundWall', 'Flue', 'Cabinet', 'Ceiling', 'WallOuter', 'CustomizedBackgroundModel', 'clipMesh', 'Hole', 'SlabSide', 'Pocket', 'WallInner', 'SmartCustomizedCeiling', 'Front', 'ExtrusionCustomizedCeilingModel', 'CustomizedFeatureWall', 'Column', 'WallBottom', 'CustomizedPersonalizedModel', 'Beam', 'BayWindow', 'Back', 'SewerPipe', 'CustomizedFixedFurniture', 'Door', 'Floor', 'Cornice', 'CustomizedCeiling', 'Baseboard', 'SlabTop', 'Window', 'CustomizedPlatform', 'CustomizedFurniture', 'LightBand', 'Customized_wainscot', 'SlabBottom'}
+            */
         }
     ],
     "material": [
