@@ -2,16 +2,35 @@
 用来将3DFUTURE格式的数据集转化为SUNCG格式的数据集
 Author : slothfulxtx
 Date : 2020/08/06
+Details : 
+    3D-FUTURE中的模型可以看作由两部分组成，分别是家具和场景中的一些组件
+    其中家具的模型直接链接到3D-FUTURE-MODEL/jid/，场景的模型并不是obj文件给出
+    而是在json文件中给出的某种需要转换的数据格式，因此首先需要将json中场景数据提取出来
+    然后处理成obj文件，之后再生成对应的SUNCG格式的json文件表示布局，json的Object List
+    中，一部分需要在3D-FUTURE-MODEL/jid/路径下寻找，一部分需要在生成的文件夹下寻找
+    生成的文件夹结构如下
+
+    |- house
+    |   |- 0b508d29-c18c-471b-8711-3f114819ea74.json 表示该布局文件是由3D-FRONT中0b508d29-c18c-471b-8711-3f114819ea74.json 文件转化来的
+    |- backgroundobj
+        |- 0b508d29-c18c-471b-8711-3f114819ea74 3D-FRONT下 0b508d29-c18c-471b-8711-3f114819ea74.json 对应的布局
+            |- 5031ce7f-343a-41c8-b8ce-e2e943398df5X53357662.obj 该布局中某个3D-FUTURE认为属于背景而不是家具，没有渲染出来的部件的obj模型 
 """
 
 import json
 import trimesh
 import numpy as np
 import math
-import os,argparse
+import os
+import argparse
+from tqdm import tqdm
 import math
 import igl
 from shutil import copyfile
+
+INF = 1e9
+
+
 
 def split_path(paths):
     filepath,tempfilename = os.path.split(paths)
@@ -53,100 +72,97 @@ def rotation_matrix(axis, theta):
 
 
 def main(args):
-    files = os.listdir(args.3DFRONT_path)
+    filenames = os.listdir(args.FRONT_path)
 
     if not os.path.exists(args.save_path):
         os.mkdir(args.save_path)
+    if not os.path.exists(os.path.join(args.save_path,"house")):
+        os.mkdir(os.path.join(args.save_path,"house"))
+    if not os.path.exists(os.path.join(args.save_path,"backgroundobj")):
+        os.mkdir(os.path.join(args.save_path,"backgroundobj"))
+    for sceneIdx,filename in tqdm(enumerate(filenames)):
+        
+        
+        if not os.path.exists(os.path.join(args.save_path,"backgroundobj",filename[:-5])):
+            os.mkdir(os.path.join(args.save_path,"backgroundobj",filename[:-5]))
 
-    for m in files:
-        with open(args.json_path+'/'+m, 'r', encoding='utf-8') as f:
+        with open(os.path.join(args.FRONT_path, filename), 'r', encoding='utf-8') as f:
             # 打开3D-FRONT每个json文件
-            data = json.load(f)
-            model_jid = []
-            model_uid = []
-            model_bbox= []
+            frontJson = json.load(f)
 
-            mesh_uid = []
-            mesh_xyz = []
-            mesh_faces = []
-            if not os.path.exists(args.save_path+'/'+m[:-5]):
-                os.mkdir(args.save_path+'/'+m[:-5])
-            # 对于每个3D-FRONT下的json文件
-            # 在输出路径下创建一个文件夹
-            print(m[:-5])
-            for ff in data['furniture']:
-                if 'valid' in ff and ff['valid']:
-                    model_uid.append(ff['uid'])
-                    model_jid.append(ff['jid'])
-                    model_bbox.append(ff['bbox'])
-            # 只渲染对应模型存在的家具
-            for mm in data['mesh']:
-                mesh_uid.append(mm['uid'])
-                mesh_xyz.append(np.reshape(mm['xyz'], [-1, 3]))
-                mesh_faces.append(np.reshape(mm['faces'], [-1, 3]))
-            scene = data['scene']
-            room = scene['room']
-            for r in room:
-                # 对于该布局文件中的每间房间
-                room_id = r['instanceid']
-                meshes=[]
-                if not os.path.exists(args.save_path+'/' + m[:-5]+'/'+room_id):
-                    os.mkdir(args.save_path+'/' + m[:-5] + '/' + room_id)
-                # 在布局的文件夹下创建对应的房间文件夹
-                children = r['children']
-                number = 1
-                for c in children:
-                    
-                    ref = c['ref']
-                    type = 'f'
-                    try:
-                        idx = model_uid.index(ref)
-                        # 在家具模型列表中查找是否存在该ref
-                        if os.path.exists(args.future_path+'/' + model_jid[idx]):
-                            v, vt, _, faces, ftc, _ = igl.read_obj(args.future_path+'/' + model_jid[idx] + '/raw_model.obj')
-                            # bbox = np.max(v, axis=0) - np.min(v, axis=0)
-                            # s = bbox / model_bbox[idx]
-                            # v = v / s
-                    except:
-                        try:
-                            idx = mesh_uid.index(ref)
-                            # 在场景纹理中查找是否存在该ref
-                        except:
-                            continue
-                        v = mesh_xyz[idx]
-                        faces = mesh_faces[idx]
-                        type='m'
-
-                    pos = c['pos']
-                    rot = c['rot']
-                    scale = c['scale']
-                    v = v.astype(np.float64) * scale
-                    ref = [0,0,1]
-                    axis = np.cross(ref, rot[1:])
-                    theta = np.arccos(np.dot(ref, rot[1:]))*2
-                    if np.sum(axis) != 0 and not math.isnan(theta):
-                        R = rotation_matrix(axis, theta)
-                        v = np.transpose(v)
-                        v = np.matmul(R, v)
-                        v = np.transpose(v)
-
-                    v = v + pos
-                    if type == 'f':
-                        # 如果是家具，和纹理一起暂存到obj文件
-                        write_obj_with_tex(args.save_path+'/' + m[:-5]+'/'+room_id+'/' + str(number) + '_' +model_jid[idx] + '.obj', v, faces, vt, ftc, args.future_path+'/' + model_jid[idx] + '/texture.png')
-                        number = number + 1
-                    else:
-                        # 如果是场景，添加到meshes中
-                        meshes.append(trimesh.Trimesh(v, faces))
-
-                if len(meshes) > 0:
-                    temp = trimesh.util.concatenate(meshes)
-                    temp.export(args.save_path+'/'+ m[:-5] + '/' + room_id + '/mesh.obj')
-                    # 如果meshes列表不为空，那么导出一个mesh.obj文件
+        suncgJson = {}    
+        
+        suncgJson["origin"] = frontJson["uid"]
+        suncgJson["id"] = str(sceneIdx)
+        suncgJson["bbox"] = {
+            "min":[INF,INF,INF],
+            "max":[-INF,-INF,-INF]
+        }
+        suncgJson["up"] = [0,1,0]
+        suncgJson["front"] = [0,0,1]
+        suncgJson["rooms"] = []
+        
+        meshList = frontJson["mesh"]
+        meshes = {}
+        for mesh in meshList:
+            meshes[mesh["uid"]] = mesh
+            xyz = np.reshape(mesh['xyz'],(-1,3)).astype(np.float64)
+            face = np.reshape(mesh['faces'],(-1,3))
+            trimesh.Trimesh(xyz,face).export(os.path.join(args.save_path,"backgroundobj",filename[:-5],mesh["uid"].replace('/','X')+".obj"))
+            # TODO : 可能需要同类别合并一下，暂时先不做
+        
+        furnitureList = frontJson["furniture"]
+        furnitures = {}
+        for furniture in furnitureList:
+            if "valid" in furniture and furniture["valid"]:
+                furnitures[furniture["uid"]] = furniture
 
 
+        scene = frontJson["scene"]
+        rooms = scene["room"]
 
+        room_obj_cnt = 0
 
+        for roomIdx, front_room in enumerate(rooms):
+            suncg_room = {
+                "id" : "%d_%d" % (sceneIdx,room_obj_cnt),
+                "modelId":"",
+                "roomTypes" :[front_room["type"]],
+                "bbox":{
+                    "min":[INF,INF,INF],
+                    "max":[-INF,-INF,-INF]
+                },
+                "origin": frontJson["uid"],
+                "roomId": roomIdx,
+                "objList" :[]
+            }
+            room_obj_cnt += 1
+            for childIdx, child in enumerate(front_room["children"]):
+                if child["ref"] not in meshes and child["ref"] not in furnitures:
+                    continue
+                suncg_obj = {
+                    "id": "%d_%d" % (sceneIdx,room_obj_cnt),
+                    "type": "Object",
+                    "modelId": meshes[child["ref"]]["uid"].replace('/','X') if child["ref"] in meshes else furnitures[child["ref"]]["jid"],
+                    "bbox":{
+                        "min":[INF,INF,INF],
+                        "max":[-INF,-INF,-INF]
+                    },
+                    "translate":child["pos"],
+                    "scale":child["scale"],
+                    "rotate":"TODO",
+                    "rotateOrder": "XYZ",
+                    "orient":"TODO",
+                    "coarseSemantic": meshes[child["ref"]]["type"] if child["ref"] in meshes else furnitures[child["ref"]]["category"],
+                    "roomId" : roomIdx
+                }    
+                room_obj_cnt += 1
+                suncg_room["objList"].append(suncg_obj)
+            suncgJson["rooms"].append(suncg_room)
+        
+        with open(os.path.join(args.save_path,"house",filename),"w") as f:
+            json.dump(suncgJson,f)
+        break    
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
