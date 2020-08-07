@@ -27,10 +27,20 @@ from tqdm import tqdm
 import math
 import igl
 from shutil import copyfile
-
+import sys
 INF = 1e9
 
+def Min3d(aa,bb):
+    c = []
+    for a,b in zip(aa,bb):
+        c.append(a if a<b else b)
+    return c
 
+def Max3d(aa,bb):
+    c = []
+    for a,b in zip(aa,bb):
+        c.append(a if a>b else b)
+    return c
 
 def split_path(paths):
     filepath,tempfilename = os.path.split(paths)
@@ -157,8 +167,46 @@ def main(args):
                     "roomId" : roomIdx
                 }    
                 room_obj_cnt += 1
+                obj_path = None
+                if child["ref"] in meshes:
+                    obj_path = os.path.join(args.save_path,"backgroundobj",filename[:-5],meshes[child["ref"]]["uid"].replace('/','X')+".obj")
+                if child["ref"] in furnitures:
+                    obj_path = os.path.join(args.FUTURE_path,furnitures[child["ref"]]["jid"],"raw_model.obj")
+                assert obj_path is not None
+                assert os.path.exists(obj_path)
+
+                # 屏蔽warning信息，下面的方法好像屏蔽不了，日
+                # stdout,stderr= sys.stdout,sys.stderr
+                # with open('/dev/null',"w+") as null:
+                #     sys.stdout,sys.stderr = null,null
+                v, vt, _, faces, ftc, _ = igl.read_obj(obj_path)
+                #sys.stdout,sys.stderr = sys.stdout,stderr
+
+                pos,rot,scale = child["pos"],child["rot"],child["scale"]
+                v = v.astype(np.float64) * scale
+                ref = [0,0,1]
+                axis = np.cross(ref, rot[1:])
+                theta = np.arccos(np.dot(ref, rot[1:]))*2
+                if np.sum(axis) != 0 and not math.isnan(theta):
+                    R = rotation_matrix(axis, theta)
+                    v = np.transpose(v)
+                    v = np.matmul(R, v)
+                    v = np.transpose(v)
+                v = v + pos
+                assert v.shape[1:] == (3,)
+                lb = v.min(axis=0)
+                ub = v.max(axis=0)
+                suncg_obj["bbox"]["min"] = list(lb)
+                suncg_obj["bbox"]["max"] = list(ub)
                 suncg_room["objList"].append(suncg_obj)
+                
+                suncg_room["bbox"]["min"] = Min3d(suncg_room["bbox"]["min"],suncg_obj["bbox"]["min"])
+                suncg_room["bbox"]["max"] = Max3d(suncg_room["bbox"]["max"],suncg_obj["bbox"]["max"])
+                
+
             suncgJson["rooms"].append(suncg_room)
+            suncgJson["bbox"]["min"] = Min3d(suncgJson["bbox"]["min"],suncg_room["bbox"]["min"])
+            suncgJson["bbox"]["max"] = Max3d(suncgJson["bbox"]["max"],suncg_room["bbox"]["max"])
         
         with open(os.path.join(args.save_path,"house",filename),"w") as f:
             json.dump(suncgJson,f)

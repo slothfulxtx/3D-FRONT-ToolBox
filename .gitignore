@@ -135,3 +135,7 @@ test.json
 
 # temporal files
 tmp/
+
+# debug bash files
+
+*debug.sh
