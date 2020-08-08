@@ -28,6 +28,7 @@ import math
 import igl
 from shutil import copyfile
 import sys
+from math import atan2, copysign, asin
 INF = 1e9
 
 def Min3d(aa,bb):
