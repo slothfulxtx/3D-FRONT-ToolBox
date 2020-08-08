@@ -67,6 +67,22 @@ files = os.listdir(args.json_path)
 if not os.path.exists(args.save_path):
     os.mkdir(args.save_path)
 
+files = [
+    '785aec91-b165-4561-a384-1a191e6690ba.json',
+    '0e02ee68-5940-49dd-bbdc-0e3667ec9e49.json',
+    '4b663d06-fc0a-44ca-887a-d0bfc584a3ee.json',
+    '1aab0a4b-760c-4489-b012-da6cefdca8a4.json',
+    '129c9a2a-f789-4cd0-82c0-2b6d5293c45f.json',
+    '5a4c9099-cf8f-4439-96ee-43736096617a.json',
+    '5c0a1757-e14e-4901-a3a3-498537689821.json',
+    '4c1b75c2-351b-4b6b-a7df-c867a2d9b3d6.json',
+    '274ef293-2cf8-4c9a-8125-814f91d0bc83.json',
+    '641eaf99-ec77-40a6-bef8-2ff72ef2b1d1.json',
+    '7b2fae3d-5455-4dae-b174-7643ca83b1dc.json',
+    '06a3196e-a2a2-4952-a5c6-034afcc18e15.json',
+    '7e07a2a4-fead-40b8-8172-a430c150b733.json',
+    'be5538a6-455b-486f-a46a-fd03d864587e.json']
+
 for m in tqdm(files):
     with open(args.json_path+'/'+m, 'r', encoding='utf-8') as f:
         data = json.load(f)
