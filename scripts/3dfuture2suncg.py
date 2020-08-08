@@ -81,6 +81,33 @@ def rotation_matrix(axis, theta):
                      [2 * (bd + ac), 2 * (cd - ab), aa + dd - bb - cc]])
 
 
+def quaternion_to_euler(qlist):
+    q = {}
+    q['x'] = qlist[0]
+    q['y'] = qlist[1]
+    q['z'] = qlist[2]
+    q['w'] = qlist[3]
+
+    # roll (x-axis rotation)
+    sinr_cosp = 2 * (q['w'] * q['x'] + q['y'] * q['z'])
+    cosr_cosp = 1 - 2 * (q['x'] * q['x'] + q['y'] * q['y'])
+    roll = atan2(sinr_cosp, cosr_cosp)
+
+    # pitch (y-axis rotation)
+    sinp = 2 * (q['w'] * q['y'] - q['z'] * q['x'])
+    if abs(sinp) >= 1:
+        pitch = copysign(np.pi / 2, sinp) # use 90 degrees if out of range
+    else:
+        pitch = asin(sinp)
+
+    # yaw (z-axis rotation)
+    siny_cosp = 2 * (q['w'] * q['z'] + q['x'] * q['y'])
+    cosy_cosp = 1 - 2 * (q['y'] * q['y'] + q['z'] * q['z'])
+    yaw = atan2(siny_cosp, cosy_cosp)
+
+    return (roll, pitch, yaw)
+
+
 def main(args):
     filenames = os.listdir(args.FRONT_path)
 
@@ -160,9 +187,9 @@ def main(args):
                     },
                     "translate":child["pos"],
                     "scale":child["scale"],
-                    "rotate":"TODO",
+                    "rotate":quaternion_to_euler(child["rot"]),
                     "rotateOrder": "XYZ",
-                    "orient":"TODO",
+                    "orient":quaternion_to_euler(child["rot"])[1],
                     "coarseSemantic": meshes[child["ref"]]["type"] if child["ref"] in meshes else furnitures[child["ref"]]["category"],
                     "roomId" : roomIdx
                 }    
@@ -180,7 +207,8 @@ def main(args):
                 # with open('/dev/null',"w+") as null:
                 #     sys.stdout,sys.stderr = null,null
                 v, vt, _, faces, ftc, _ = igl.read_obj(obj_path)
-                #sys.stdout,sys.stderr = sys.stdout,stderr
+                # print("???")
+                # sys.stdout,sys.stderr = stdout,stderr
 
                 pos,rot,scale = child["pos"],child["rot"],child["scale"]
                 v = v.astype(np.float64) * scale
