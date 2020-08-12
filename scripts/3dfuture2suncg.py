@@ -156,7 +156,7 @@ def main(args):
         # '7e07a2a4-fead-40b8-8172-a430c150b733.json',
         # 'be5538a6-455b-486f-a46a-fd03d864587e.json'
         ]
-    filenames = os.listdir('../../3D-FRONT')
+    filenames = os.listdir('../../3D-FRONT')[277:]
     
     for sceneIdx,filename in tqdm(enumerate(filenames)):
         
@@ -291,7 +291,12 @@ def main(args):
                 # stdout,stderr= sys.stdout,sys.stderr
                 # with open('/dev/null',"w+") as null:
                 #     sys.stdout,sys.stderr = null,null
-                v, vt, _, faces, ftc, _ = igl.read_obj(obj_path)
+                # some .obj files are not provided by ali, so here we need to skip them; 
+                try:
+                    v, vt, _, faces, ftc, _ = igl.read_obj(obj_path)
+                except Exception as e:
+                    print(e)
+                    continue
                 # print("???")
                 # sys.stdout,sys.stderr = stdout,stderr
 
